@@ -28,3 +28,7 @@ fp-info-cache
 # C++
 _build
 *.swp
+
+# Excel
+~\$*.xlsx
+
