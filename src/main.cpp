@@ -40,22 +40,23 @@ static uint16_t midi2dac(uint8_t ch, uint8_t note)
 }
 
 enum midi_tag_t
-    { note_off = 0x8
-    , note_on = 0x9
+    { note_off      = 0x80
+    , note_on       = 0x90
+    , calibrate     = 0xf4      // reserved & undefined in midi
     };
 
 struct midi_message_t
 {
     midi_tag_t  tag;
     uint8_t     channel;
-    uint8_t     data1;
+    uint16_t    data1;      // should stricly be 8-bit but allow more for extended use
     uint8_t     data2;
 };
 
 static bool parse_midi_message(const char *s, midi_message_t& m)
 {
     int cmd, d1, d2, n = sscanf(s, "%x %d %d", &cmd, &d1, &d2);
-    printf("n = %d, cmd = %d, d1 = %d, d2 = %d\n", n, cmd, d1, d2);
+    //printf("n = %d, cmd = %d, d1 = %d, d2 = %d\n", n, cmd, d1, d2);
 
     if (n == 0)
         return false;
@@ -64,11 +65,16 @@ static bool parse_midi_message(const char *s, midi_message_t& m)
     m.data1 = d1;
     m.data2 = d2;
 
-    switch (m.tag = static_cast<midi_tag_t>(cmd >> 4))
+    switch (m.tag = static_cast<midi_tag_t>(cmd & 0xf0))
     {
         case note_off: return n == 3;
         case note_on: return n == 3;
-        default: return false;
+        default:
+            switch (m.tag = static_cast<midi_tag_t>(cmd))
+            {
+            case calibrate: m.channel = d2; return n == 3;
+            default: return false;
+            }
     }
 }
 
@@ -78,6 +84,7 @@ static void show_midi_message(const midi_message_t& m)
     {
         case note_off: printf("note-off[%d]: %d %d\n", m.channel, m.data1, m.data2); break;
         case note_on: printf("note-on[%d]: %d %d\n", m.channel, m.data1, m.data2); break;
+        case calibrate: printf("calibrate[%d]: %d\n", m.channel, m.data1); break;
         default: printf("unrecognized message tag: %d\n", m.tag);
     }
 }
@@ -106,6 +113,16 @@ static void interpret_midi_message(const midi_message_t& m)
         default: ;
         }
         break;
+    case calibrate:
+        switch (m.channel)
+        {
+        case 1: dac1::write<A>(m.data1); trg1::toggle(); break;
+        case 2: dac1::write<B>(m.data1); trg2::toggle(); break;
+        case 3: dac2::write<A>(m.data1); trg3::toggle(); break;
+        case 4: dac2::write<B>(m.data1); trg4::toggle(); break;
+        default: ;
+        }
+        break;
     default: ;
     }
 }
@@ -114,7 +131,7 @@ static char buf[1024];
 
 int main()
 {
-    serial::setup<230400>();
+    serial::setup<115200>();
     hal::nvic<interrupt::USART2>::enable();
     interrupt::enable();
 
@@ -142,7 +159,7 @@ int main()
     {
         midi_message_t m;
 
-        printf("> \n");
+        //printf("> \n");
         if (fgets(buf, sizeof(buf), stdin) && parse_midi_message(buf, m))
         {
             show_midi_message(m);
