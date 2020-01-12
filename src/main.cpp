@@ -32,7 +32,7 @@ static uint16_t midi2dac(uint8_t ch, uint8_t note)
     constexpr float a[] = { -409.1194371, -409.510864, -410.0377097, -409.2416325 };
     constexpr float b[] = { 2608.253663, 2594.894566, 2605.704263, 2600.273296 };
     constexpr float inv12 = 1.0f / 12.0f;
-    float cv = inv12 * (static_cast<float>(note) - 69.0f);
+    float cv = inv12 * (static_cast<float>(note) - 57.0f);
 
     return static_cast<uint16_t>(a[ch] * cv + b[ch]);
 }
@@ -147,10 +147,10 @@ int main()
     trg4::setup();
     trg4::set();
 
-    dac1::write<A>(midi2dac(0, 69));
-    dac1::write<B>(midi2dac(1, 69));
-    dac2::write<A>(midi2dac(2, 69));
-    dac2::write<B>(midi2dac(3, 69));
+    dac1::write<A>(midi2dac(0, 57));
+    dac1::write<B>(midi2dac(1, 57));
+    dac2::write<A>(midi2dac(2, 57));
+    dac2::write<B>(midi2dac(3, 57));
 
     for (;;)
     {
